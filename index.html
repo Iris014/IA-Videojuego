@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="PVZ Modern Days: defiende tu patio delantero de la invasión zombi.">
+  <meta name="theme-color" content="#2f5d1f">
+  <title>PVZ Modern Days</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<noscript>PVZ Modern Days necesita JavaScript activado para funcionar.</noscript>
+
+<main id="app">
+  <!-- #viewport mantiene la proporción 1060x640 y escala todo el contenido (canvas + DOM) -->
+  <div id="viewport" data-state="LOADING">
+
+    <!-- ===================== PANTALLA: CARGA ===================== -->
+    <section id="screen-loading" class="screen is-active" data-screen="LOADING" aria-label="Cargando el juego">
+      <div class="loading-card">
+        <p class="logo-mini">PVZ Modern Days</p>
+        <div id="loadbar" class="loadbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progreso de carga">
+          <div id="loadbar-fill" class="loadbar-fill"></div>
+        </div>
+        <p id="loading-text" class="loading-text">Regando el césped…</p>
+      </div>
+    </section>
+
+    <!-- ===================== PANTALLA: INICIO ===================== -->
+    <section id="screen-start" class="screen" data-screen="START" aria-label="Pantalla de inicio">
+      <div class="start-scene" aria-hidden="true">
+        <div class="sun-orb"></div>
+        <div class="start-house"></div>
+        <div class="start-fence"></div>
+        <div class="start-lawn"></div>
+      </div>
+      <header class="yard-sign">
+        <h1 class="yard-sign-title">
+          <span class="yard-sign-line">PVZ</span>
+          <span class="yard-sign-line">Modern Days</span>
+        </h1>
+        <p class="yard-sign-sub">Los zombis ya están en tu calle. Tu patio es el último frente.</p>
+      </header>
+      <nav class="menu" aria-label="Menú principal">
+        <button id="btn-play" class="btn btn-primary" type="button">Jugar</button>
+        <button id="btn-mute" class="btn" type="button" aria-pressed="false">Sonido activado</button>
+      </nav>
+      <p class="start-hint">Pasa el mouse sobre los soles para recogerlos. Esc pausa la partida.</p>
+    </section>
+
+    <!-- ===================== PANTALLA: MAPA ===================== -->
+    <section id="screen-map" class="screen" data-screen="MAP" aria-label="Mapa del vecindario">
+      <header class="map-head">
+        <button id="btn-map-back" class="btn btn-small" type="button">Volver</button>
+        <h2>Mapa del vecindario</h2>
+      </header>
+      <div id="map-board" class="map-board">
+        <svg class="map-road" viewBox="0 0 1060 640" preserveAspectRatio="none" aria-hidden="true">
+          <path class="map-road-edge" d="M60 520 C 250 600, 330 380, 520 440 S 800 300, 880 200 S 980 120, 1010 110"/>
+          <path class="map-road-line" d="M60 520 C 250 600, 330 380, 520 440 S 800 300, 880 200 S 980 120, 1010 110"/>
+        </svg>
+        <ol id="map-nodes" class="map-nodes" aria-label="Niveles"></ol>
+      </div>
+      <aside id="map-info" class="map-info" aria-live="polite">
+        <h3 id="map-info-title">Elige un patio</h3>
+        <p id="map-info-text">Selecciona un nivel del mapa para ver de qué trata.</p>
+        <button id="btn-map-start" class="btn btn-primary" type="button" disabled>Defender</button>
+      </aside>
+    </section>
+
+    <!-- ===================== PANTALLA: JUEGO ===================== -->
+    <section id="screen-game" class="screen" data-screen="GAME" aria-label="Partida">
+      <div id="stage">
+        <!-- Capa 1: fondo y grilla estáticos (se dibuja una vez por nivel) -->
+        <canvas id="layer-bg" width="1060" height="640" aria-hidden="true"></canvas>
+        <!-- Capa 2: entidades activas (plantas, zombis, proyectiles, podadoras) -->
+        <canvas id="layer-entities" width="1060" height="640" aria-label="Campo de batalla" role="img"></canvas>
+        <!-- Capa 3: soles, holograma de colocación, textos flotantes y depuración -->
+        <canvas id="layer-ui" width="1060" height="640" aria-hidden="true"></canvas>
+
+        <!-- HUD en DOM: barra de cartas, soles, nutrientes y pausa -->
+        <div id="hud" class="hud">
+          <div class="hud-sun" id="sun-counter" title="Soles">
+            <span class="hud-sun-icon" id="sun-icon" aria-hidden="true"></span>
+            <output id="sun-value" aria-label="Soles disponibles">0</output>
+          </div>
+          <div id="card-bar" class="card-bar" role="toolbar" aria-label="Cartas de plantas"></div>
+          <div class="hud-tools">
+            <button id="btn-plantfood" class="tool" type="button" aria-pressed="false" title="Nutriente (tecla F)">
+              <span class="pf-icon" aria-hidden="true"></span>
+              <output id="pf-value" aria-label="Nutrientes">0</output>
+            </button>
+            <button id="btn-pause" class="tool tool-pause" type="button" aria-label="Pausar partida" title="Pausa (Esc)">
+              <span aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progreso de oleadas (se rellena de derecha a izquierda, como el avance zombi) -->
+        <div id="progress" class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progreso de la invasión">
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill"></div>
+            <div id="progress-flags" class="progress-flags"></div>
+          </div>
+          <span id="progress-label" class="progress-label">Invasión zombi</span>
+        </div>
+
+        <!-- Aviso de oleada / bandera -->
+        <div id="banner" class="banner" role="status" aria-live="assertive"></div>
+      </div>
+    </section>
+
+    <!-- ===================== CAPA DE DIÁLOGOS (StoryManager) ===================== -->
+    <div id="story" class="story" aria-hidden="true" role="dialog" aria-label="Diálogo">
+      <div class="story-bar story-bar-top"></div>
+      <div class="story-box">
+        <div id="story-portrait" class="portrait" data-mood="normal" aria-hidden="true">
+          <span class="p-pot"></span><span class="p-face"></span><span class="p-eyes"></span><span class="p-beard"></span>
+        </div>
+        <div class="story-text">
+          <p id="story-speaker" class="story-speaker"></p>
+          <p id="story-line" class="story-line"></p>
+          <span id="story-next" class="story-next">Clic o Espacio para continuar</span>
+        </div>
+        <button id="btn-story-skip" class="btn btn-small" type="button">Saltar</button>
+      </div>
+    </div>
+
+    <!-- ===================== MODALES ===================== -->
+    <div id="modal-pause" class="modal" aria-hidden="true" role="dialog" aria-labelledby="modal-pause-title">
+      <div class="modal-card">
+        <h2 id="modal-pause-title">Partida en pausa</h2>
+        <p>Los zombis esperan. Nadie se mueve mientras estés aquí.</p>
+        <div class="modal-actions">
+          <button id="btn-resume" class="btn btn-primary" type="button">Seguir jugando</button>
+          <button id="btn-restart" class="btn" type="button">Reiniciar nivel</button>
+          <button id="btn-quit" class="btn" type="button">Volver al mapa</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-gameover" class="modal modal-danger" aria-hidden="true" role="alertdialog" aria-labelledby="modal-gameover-title">
+      <div class="modal-card">
+        <h2 id="modal-gameover-title">Los zombis llegaron a tu casa</h2>
+        <p id="gameover-text">Un zombi cruzó la línea de césped sin ninguna podadora que lo detuviera.</p>
+        <div class="modal-actions">
+          <button id="btn-retry" class="btn btn-primary" type="button">Intentar de nuevo</button>
+          <button id="btn-gameover-map" class="btn" type="button">Volver al mapa</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-victory" class="modal modal-ok" aria-hidden="true" role="dialog" aria-labelledby="modal-victory-title">
+      <div class="modal-card">
+        <h2 id="modal-victory-title">Patio defendido</h2>
+        <p>La última oleada cayó. El vecindario respira un poco más tranquilo.</p>
+        <div class="modal-actions">
+          <button id="btn-victory-map" class="btn btn-primary" type="button">Continuar al mapa</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Orden de carga: Engine.js primero. Descomenta los demás cuando los tengas. -->
+<script src="Engine.js"></script>
+<!-- <script src="Entities.js"></script> -->
+<!-- <script src="LevelManager.js"></script> -->
+</body>
+</html>
