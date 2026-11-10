@@ -46,6 +46,188 @@
 /* ==========================================================================
    CONFIG
    ========================================================================== */
+/* ==========================================================================
+   MUNDOS, ENTORNOS, CATÁLOGO DE PLANTAS Y NIVELES
+   --------------------------------------------------------------------------
+   5 mundos x 10 subniveles = 50 fragmentos de historia (1-1 ... 5-10).
+   Cada nivel trae: env, dialogue (líneas progresivas de Crazy Dave) y reward
+   (id de la planta que se gana al superarlo, o null).
+   ========================================================================== */
+const WORLDS = Object.freeze([
+  { id: 1, name: 'Día', env: 'day' },
+  { id: 2, name: 'Noche', env: 'night' },
+  { id: 3, name: 'Piscina', env: 'pool' },
+  { id: 4, name: 'Niebla', env: 'fog' },
+  { id: 5, name: 'Tejado', env: 'roof' }
+]);
+
+const PLANT_NAMES = Object.freeze(Object.fromEntries(
+  ('peashooter:Lanzaguisantes,sunflower:Girasol,wallnut:Nuez,cherrybomb:Petacereza,potatomine:Mina de papa,' +
+   'snowpea:Guisante helado,repeater:Repetidora,chomper:Planta carnívora,puffshroom:Puff-seta,sunshroom:Sol-seta,' +
+   'fumeshroom:Fume-seta,gravebuster:Come-tumbas,hypnoshroom:Hipno-seta,scaredyshroom:Seta miedosa,' +
+   'iceshroom:Hielo-seta,doomshroom:Seta fatal,magnetshroom:Imán-seta,lilypad:Nenúfar,squash:Calabaza aplastante,' +
+   'threepeater:Triple lanzaguisantes,tanglekelp:Alga enredadera,jalapeno:Jalapeño,spikeweed:Pinchos,' +
+   'torchwood:Tronco antorcha,splitpea:Guisante doble,plantern:Linterna vegetal,cactus:Cactus,blover:Trébol,' +
+   'starfruit:Carambola,pumpkin:Calabaza,cabbagepult:Col catapulta,garlic:Ajo,flowerpot:Maceta,' +
+   'kernelpult:Maíz catapulta,umbrellaleaf:Hoja paraguas,marigold:Caléndula,melonpult:Melón catapulta,' +
+   'coffeebean:Grano de café').split(',').map(p => p.split(':'))
+));
+
+/* Paletas por entorno para _drawBackground() */
+const ENVS = Object.freeze({
+  day: { sky: ['#7cc8ef', '#cdeefb'], lawn: ['#6bb548', '#5fa83e'], side: '#4f9535', fence: ['#a8723a', '#97652f'], rail: '#6b4220', walk: '#b9b9b0', house: '#b4492f' },
+  night: { sky: ['#0b1033', '#27386b'], lawn: ['#34604a', '#2b5240'], side: '#23442f', fence: ['#4a3a2a', '#3f3124'], rail: '#2b2016', walk: '#5d6068', house: '#6b2c25', overlay: 'rgba(6,10,40,.28)', stars: true },
+  pool: { sky: ['#7cc8ef', '#d7f3fb'], lawn: ['#6bb548', '#5fa83e'], side: '#4f9535', fence: ['#c9b48a', '#bba67c'], rail: '#8c7a55', walk: '#d8d2c0', house: '#b4492f', water: ['#3ba7d9', '#2f95c8'], waterRows: [2, 3] },
+  fog: { sky: ['#6f7b87', '#b8c2cb'], lawn: ['#4f7f48', '#497642'], side: '#3d6338', fence: ['#6c5a48', '#5f4f3f'], rail: '#43372b', walk: '#8d9298', house: '#7a3a2e', overlay: 'rgba(170,182,195,.18)', fog: true },
+  roof: { sky: ['#d98a5a', '#f3c89a'], lawn: ['#b4492f', '#a64028'], side: '#8f3622', fence: null, rail: '#6d2a1a', walk: '#7a7a7a', house: '#5d2113', roof: true }
+});
+
+/* ----- Mundo 1 (Día): escrito a mano, con la introducción extendida en 1-1 ----- */
+const DAY_LEVELS = [
+  { name: 'Patio delantero', reward: 'sunflower', startSuns: 150, lines: [
+    '¡Hola, vecino! Soy Crazy Dave. Sí, el de la cacerola en la cabeza. No, no me la quito. Ni para dormir, ni para ducharme.',
+    'Vivo en la casa de al lado desde hace años y últimamente la calle está rara. Raaara. Ayer vi a alguien en mi jardín que no era el cartero. Tenía un cono en la cabeza y caminaba así: ¡bluuuh!',
+    'Son zombis, vecino. ZOM-BIS. Llegaron esta mañana, justo después de mi desayuno de tacos. Mi desayuno de tacos.',
+    'Quieren entrar a tu casa. Quieren tu cerebro. Yo les expliqué que no es un buen cerebro, que tiene cosas raras dentro, pero no escuchan.',
+    'Por suerte tengo un plan. Mi plan se llama PLANTAS. Las plantas, ellas disparan. Es un plan buenísimo. Casi nunca explota.',
+    'Primero necesitas soles. Caen del cielo cada cierto tiempo. Pasa el mouse por encima y los recoges. Es como magia, pero gratis.',
+    'Con los soles compras plantas. Arriba, en la barra de cartas, elige la Lanzaguisantes y haz clic en una casilla del césped.',
+    'Cada carril tiene una podadora. Si un zombi la toca, arranca y arrasa con toda la fila. Es tu última defensa y el único objeto de la casa que sabe correr.',
+    'Y si un zombi llega a la puerta sin podadora... bueno. Digamos que tu cerebro hará de aperitivo.',
+    'Cuando suene la sirena viene una Gran Oleada: todos los zombis a la vez. Mantén la calma y mantén los guisantes.',
+    '¡Ahora, a plantar! Yo me quedo aquí, vigilando mi buzón.'
+  ] },
+  { name: 'Girasoles al sol', reward: 'wallnut', lines: [
+    '¡Lo lograste, vecino! Un zombi menos y la cacerola sigue en mi cabeza. Hoy es un buen día.',
+    'Acabo de plantar un Girasol en mi macetero. Produce soles extra, así que no dependerás solo del cielo.',
+    'Ponlos atrás, lejos de la acción, y deja que los guisantes se ocupen del frente.',
+    'Ah, y toma esta pala (botón del panel o tecla S). Si plantas algo en el lugar equivocado, lo desentierras y listo.'
+  ] },
+  { name: 'Nueces valientes', reward: 'cherrybomb', lines: [
+    '¿Viste ese zombi con un cono de tráfico en la cabeza? Resiste más que los otros. Creo que lo robó de la obra de la esquina.',
+    'Para esos tenemos las Nueces, que aguantan mordiscos como campeonas. Ponlas delante y tus plantas respiran.',
+    'Y tengo una sorpresa: algo rojo, redondo y con muy mal carácter. Se llama Petacereza. Pero eso será para el final del nivel.'
+  ] },
+  { name: 'El buzón de Dave', reward: 'potatomine', lines: [
+    'Vecino, hoy atacaron mi buzón. Mi buzón. Tenía una carta de mi tía dentro. Una carta MUY importante.',
+    'Los zombis no leen correo, pero sí muerden cartas. Hay que defender el buzón y todo lo que esté cerca.',
+    'Te presto una Mina de papa. Es una papa que explota. No me preguntes quién la entrenó.'
+  ] },
+  { name: 'Cubos en la calle', reward: 'snowpea', lines: [
+    'Ahora aparecen zombis con cubos en la cabeza. ¡Cubos! Los vecinos de la otra calle deben haber vaciado el garaje.',
+    'Un cubo aguanta muchísimo. Necesitas daño continuo, mucho guisante junto.',
+    'Mira lo que encontré en mi congelador: un Guisante helado. Ralentiza todo lo que toca. Hasta a mi tío en las reuniones.'
+  ] },
+  { name: 'Sirenas en el barrio', reward: 'repeater', lines: [
+    '¿Escuchaste una sirena? Son las Grandes Oleadas, vecino. Aparecen todos juntos, como en una rebaja del súper.',
+    'Los zombis con bandera avisan que viene la horda. Tienen muy buen sentido de la puntualidad.',
+    'Para eso, doble potencia: una Repetidora. Dos guisantes por disparo. Matemática pura.'
+  ] },
+  { name: 'Cerebros en peligro', reward: 'chomper', lines: [
+    'Tengo malas noticias: los zombis se están organizando. Creo que alguien les da órdenes. Algún zombi con corbata y buena postura.',
+    'No sé quién es, pero lo veré pronto. Mientras tanto, aprende a plantar con cabeza. Y yo me pongo la cacerola otra vez.',
+    'Te traigo una Planta carnívora: se come un zombi entero y descansa un buen rato. Como mi tío en Navidad.'
+  ] },
+  { name: 'La noche se acerca', reward: null, lines: [
+    'El sol baja más rápido de lo normal, vecino. Cuando oscurezca, los soles dejarán de caer del cielo.',
+    'Por eso hay que guardar soles y plantar girasoles de más. Cada sol cuenta el doble.',
+    'Y recuerda la pala: si una planta está mal puesta, la sacas y la cambias.'
+  ] },
+  { name: 'Última cuadra del día', reward: null, lines: [
+    'Hoy los zombis vienen más fuertes. Los guisantes se cansan, las nueces se asustan y yo tengo hambre.',
+    'Pero estás haciendo un trabajo increíble. Mis vecinos no lo creen, pero yo sí.',
+    'Aguanta esta oleada y esta noche hablamos de lo que viene.'
+  ] },
+  { name: 'El atardecer', reward: 'puffshroom', lines: [
+    'Eso fue todo el día, vecino. El patio sigue en pie, el buzón también, y yo me siento orgulloso de ti.',
+    'Pero no te relajes: la noche trae algo peor. Zombis que no se ven bien y soles que no caen.',
+    'Cuando oscurezca, los hongos serán tus nuevos amigos. Toma una Puff-seta: pequeña, silenciosa y de mal humor.',
+    '¡Descansa un poco! Nos vemos a la luz de la luna.'
+  ] }
+];
+
+/* ----- Mundos 2 a 5: [nombre, recompensa, línea 1, línea 2] ----- */
+const PACKED_WORLDS = {
+  2: [
+    ['Primera noche', 'sunshroom', 'Qué oscuro está, ¿no? Aquí no caen soles del cielo. Tendrás que producirlos tú.', 'La Sol-seta es pequeña, pero rinde. Ponla en tu primera línea de defensa económica.'],
+    ['Hongos curiosos', 'fumeshroom', 'Los hongos son plantas nocturnas, vecino. Gastan poco y atacan pronto.', 'Prueba esta Fume-seta. Atraviesa armaduras. Y huele a calcetín, pero no lo digas.'],
+    ['Lápidas en el césped', 'gravebuster', 'Algo raro: aparecieron lápidas en tu patio. Los zombis salen de ellas como de una puerta giratoria.', 'Hay que limpiarlas con un Come-tumbas. Parece un trabajo, pero es puro apetito.'],
+    ['Voces en la oscuridad', 'hypnoshroom', 'Escuché susurros desde el garaje. Creo que los zombis hablan entre ellos, y no de cosas buenas.', 'Una Hipno-seta convierte a uno de ellos en tu aliado. Siempre quise un zombi amigo.'],
+    ['Seta miedosa', 'scaredyshroom', 'Esta seta tiene un defecto: se esconde cuando los zombis se acercan. Pero dispara desde lejos.', 'Ponla detrás de las nueces. Valiente no es quien no tiene miedo, sino quien dispara escondido.'],
+    ['Luna llena', 'iceshroom', 'Con luna llena los zombis caminan más rápido. Bueno, eso creo. No tengo cronómetro.', 'El Hielo-seta los congela a todos a la vez. Es como un congelador gigante, pero con rabia.'],
+    ['Baile fúnebre', 'doomshroom', 'Creí escuchar música en la calle. Es un zombi bailarín, y se ve muy confiado.', 'Si hay baile, hay que apagar la música. Para eso la Seta fatal: un solo botón rojo.'],
+    ['Faros apagados', 'magnetshroom', 'Se apagaron todas las luces del vecindario. Mis linternas también. Ya no veo ni mis propios pies.', 'Con un Imán-seta arrancas cubos y cascos de la cabeza de los zombis. Parece un truco de magia.'],
+    ['Madrugada', null, 'Aguanta, vecino. Falta poco para el amanecer y los zombis lo saben. Por eso atacan con todo.', 'Mantén los hongos vivos y las nueces firmes. Yo te traigo café. Bueno, un termo con algo parecido.'],
+    ['Amanecer', 'lilypad', '¡Lo lograste! El sol sale y los zombis se tambalean. Los muy dormilones.', 'Lo siguiente está en la casa de los García: una piscina. Toma un Nenúfar para flotar. Nos vemos allí.']
+  ],
+  3: [
+    ['La piscina de los García', 'squash', 'Bienvenido a la piscina. Dos carriles de agua, y no puedes plantar en ellos sin ayuda.', 'Los zombis nadan mejor que yo. Prueba con una Calabaza aplastante.'],
+    ['Chapuzón', 'threepeater', 'Cuidado con el trampolín: algunos zombis saltan por encima de tus defensas. Qué espectáculo.', 'Un Triple lanzaguisantes cubre tres carriles a la vez. Mucho guisante para tan poca planta.'],
+    ['Agua fría', 'tanglekelp', 'El agua está helada, pero los zombis ni lo notan. Están muertos, vecino, ya no sienten frío.', 'Toma un Alga enredadera: se ancla bajo el agua y arrastra al primero que pase.'],
+    ['Tubo salvavidas', 'jalapeno', 'Hay zombis con flotadores de patito. Parecen felices, ¿verdad? No te confíes.', 'Un Jalapeño arrasa una fila entera con fuego. Resultado: zombis a la parrilla.'],
+    ['Pelotas de playa', 'spikeweed', 'Alguien dejó pelotas por todas partes. Si las tocas, ruedan. Es un caos delicioso.', 'Los Pinchos pinchan lo que pisa el césped. Simples y eficaces, como mi plan de dormir siesta.'],
+    ['Bañistas', 'torchwood', 'Esos zombis con gorros de baño llegaron sin avisar. Y no traen toalla.', 'Un Tronco antorcha prende los guisantes que lo cruzan. Doble daño, y el patio se ilumina.'],
+    ['Snorkel', null, 'Los zombis con snorkel se sumergen y no pueden ser atacados hasta que salen. Qué traicioneros.', 'Hay que esperar con paciencia y guardar los soles. Yo me quedo mirando las burbujas.'],
+    ['Delfines', 'splitpea', 'Un zombi llegó montado en un delfín. No pregunto de dónde lo sacó.', 'Este Guisante doble dispara por delante y por detrás. Los delfines no entienden de retaguardia.'],
+    ['Tobogán', null, 'La piscina tiene tobogán y los zombis lo usan como autopista. Qué mal planificada está esta urbanización.', 'Una defensa profunda salva el día. Nueces al frente y deja que los guisantes hagan su arte.'],
+    ['Último chapuzón', 'plantern', 'Y eso fue todo en la piscina. Mojado, cansado, pero a salvo. Bien hecho.', 'Mañana se levanta una niebla extraña. Toma una Linterna vegetal, la vas a necesitar.']
+  ],
+  4: [
+    ['Neblina', 'cactus', 'No veo nada, vecino. La niebla cubre la mitad derecha del patio. Los zombis aparecen de la nada.', 'Planta un Cactus. Dispara de lejos, incluso a lo que no ves. Cuidado con abrazarlo.'],
+    ['Faroles en la calle', 'blover', 'Algo huele raro. A calcetín, a niebla y a pollo frito. No sé qué es peor.', 'El Trébol sopla la niebla lejos. Pero vuelve. La niebla es terca.'],
+    ['Sin visibilidad', 'starfruit', 'Dicen que la niebla trae zombis de otro barrio. Ayer vi uno con chaleco de pescador.', 'La Carambola dispara en cinco direcciones. Perfecta para cuando no sabes de dónde vienen.'],
+    ['Ruido en la niebla', 'pumpkin', 'Escucho ruidos que no son de zombis. Eso sí me da miedo. Mi cacerola tiembla.', 'Una Calabaza protege a la planta que está dentro. Como un casco, pero más naranja.'],
+    ['Carteles', 'cabbagepult', 'Había un cartel que decía "Vecinos, cuidado con los zombis". Lo clavaron los zombis. Debe ser un chiste.', 'Una Col catapulta lanza coles por encima de las nueces. Hasta contra lo que no ves.'],
+    ['Silbatos', null, 'Los zombis se silban entre sí. Se comunican con silbidos. Estoy asustado y un poco impresionado.', 'Mantén tus plantas vivas y los soles al día. Esa es la receta, y también la de mis tacos.'],
+    ['Cerco', null, 'Los zombis forman un cerco alrededor del patio. Nunca los había visto tan organizados.', 'Cada carril cuenta. Si uno cae, caen los demás. Cuídalos todos por igual.'],
+    ['Cuerno en la niebla', null, 'Escuché un cuerno en la niebla. Es una señal: algo grande se acerca.', 'Gasta soles con cabeza, vecino, y guarda algo para emergencias.'],
+    ['Espesura', null, 'La niebla está tan espesa que podría cortarla con cuchillo. Pero no lo hagas, es raro.', 'Un poco más y se despeja. Aguanta, que lo estás haciendo genial.'],
+    ['Disipando', 'garlic', 'La niebla se está yendo. Detrás hay un tejado enorme. Eso es lo que sigue.', 'Toma un Ajo: desvía a los zombis hacia otro carril. Huele fatal y funciona de maravilla. ¡Al tejado!']
+  ],
+  5: [
+    ['Escalera', 'flowerpot', 'Subieron por la escalera, vecino. Los zombis llegaron al tejado y ya no hay césped, solo tejas.', 'Aquí las plantas necesitan macetas. Toma una Maceta: es un jardín portátil.'],
+    ['Tejas resbalosas', 'kernelpult', 'Las tejas son resbaladizas y los proyectiles directos rebotan en la pendiente. Qué mala idea.', 'Maíz catapulta: lanza maíz y mantequilla. Sin explicaciones. Suena delicioso.'],
+    ['Chimenea', 'umbrellaleaf', 'Sale humo de la chimenea. Los zombis intentan entrar por ahí. Qué falta de educación.', 'La Hoja paraguas protege a las plantas vecinas de los lanzamientos. Hasta de los pájaros.'],
+    ['Antena', 'marigold', 'La antena se cayó y ahora solo tenemos señal de zombis. ¡No me gusta!', 'Caléndula: produce monedas. Aquí no sirven de nada, pero se ven bonitas.'],
+    ['Gárgolas', 'melonpult', 'Encontré una gárgola en la esquina. Creo que me miró. Mmm. Tal vez es solo yeso.', 'El Melón catapulta golpea fuerte: un melón gigante, daño y frescura.'],
+    ['Cielo rojo', 'coffeebean', 'El cielo se puso rojo, vecino. Los zombis atacan con todo. Lo siento en mi cacerola.', 'Toma un Grano de café: despierta a las plantas dormidas. Y a mí también.'],
+    ['Satélite', null, 'Alguien subió un satélite al tejado. Los zombis lo usan para localizar tu cerebro. Los muy tecnológicos.', 'Mantén la calma y defiende cada carril. Nadie toca tu cerebro mientras yo respire.'],
+    ['Último piso', null, 'Ya casi no quedan tejas sin pisar. Los zombis están cada vez más cerca de la puerta.', 'Confío en ti, vecino. Siempre lo hice, desde que me prestaste tu sartén.'],
+    ['Pararrayos', null, 'Se acerca una tormenta. Los zombis tienen aspecto de querer mojarse. Qué desfachatez.', 'Aguanta firme esta oleada y estaremos a una sola batalla de la victoria.'],
+    ['La cima', null, 'Esta es la última batalla, vecino. Todos los zombis del barrio en un solo tejado.', 'Gracias por defender mi buzón, mi casa y mi cacerola. ¡A plantar por última vez!']
+  ]
+};
+
+const LEVELS_PER_WORLD = 10;
+
+function buildLevels() {
+  const out = [];
+  WORLDS.forEach(w => {
+    const rows = w.id === 1
+      ? DAY_LEVELS
+      : PACKED_WORLDS[w.id].map(([name, reward, a, b]) => ({ name, reward, lines: [a, b] }));
+    rows.forEach((d, i) => {
+      const sub = i + 1;
+      out.push({
+        id: `${w.id}-${sub}`,
+        world: w.id,
+        sub,
+        name: d.name,
+        subtitle: `${w.name} ${w.id}-${sub}`,
+        env: w.env,
+        blurb: d.lines[0],
+        startSuns: d.startSuns ?? ((w.env === 'night' || w.env === 'fog') ? 100 : 50),
+        skySuns: !(w.env === 'night' || w.env === 'fog'),   // de noche y con niebla no caen soles
+        music: `bgm_${w.env}`,
+        reward: d.reward || null,
+        waves: null,                                          // LevelManager genera o lee el JSON
+        dialogue: d.lines.map(text => ({ speaker: 'Crazy Dave', mood: /!\s*$/.test(text) ? 'excited' : 'normal', text }))
+      });
+    });
+  });
+  return out;
+}
+
 const Config = Object.freeze({
   WIDTH: 1060,
   HEIGHT: 640,
@@ -66,35 +248,20 @@ const Config = Object.freeze({
     sunRadius: 26,
     maxPlantFood: 3
   }),
-  STORAGE_KEY: 'pvz-modern-days:progress',
+  STORAGE_KEY: 'pvz-modern-days:progress:v2',
+  WORLDS,
+  ENVS,
+  PLANT_NAMES,
+  LEVELS_PER_WORLD,
+  DEFAULT_UNLOCKED: Object.freeze(['peashooter']),   // el jugador empieza solo con la Lanzaguisantes
+  ENFORCE_WATER: false,       // true cuando exista el Nenúfar (lilypad): bloquea plantar en agua
   UPDATE_ORDER: Object.freeze(['plants', 'zombies', 'projectiles', 'mowers', 'pickups', 'suns']),
   /* Manifiesto de assets. Deja vacío para usar solo primitivas.
      Ejemplo:
        images: { sun: 'assets/img/sun.png', card_peashooter: 'assets/img/cards/peashooter.png' },
        audio:  { bgm_day: 'assets/audio/day.mp3', shoot: 'assets/audio/shoot.wav' }               */
   ASSETS: Object.freeze({ images: {}, audio: {} }),
-  LEVELS: [
-    {
-      id: 'patio-1', name: 'Patio delantero', subtitle: 'Día 1', mapPos: { x: 9, y: 78 },
-      blurb: 'El primer ataque. Un patio, un buzón y muy pocos zombis. Todavía.',
-      startSuns: 50, skySuns: true, cards: null, music: 'bgm_day', waves: null,
-      dialogue: [
-        { speaker: 'Dave el Loco', mood: 'excited', text: '¡Vecino! Soy Dave. Sí, el de la cacerola. No, no me la quito. Ni para dormir.' },
-        { speaker: 'Dave el Loco', text: 'Los zombis están subiendo por tu calle. Algunos ya pisaron mi buzón. ¡Mi buzón, vecino!' },
-        { speaker: 'Dave el Loco', text: 'Los soles caen del cielo. Pasa el mouse por encima y los recoges. Es gratis, como el aire y los tacos de mi tío.' },
-        { speaker: 'Dave el Loco', text: 'Elige una carta, toca una casilla del césped y planta. Cada carril tiene una podadora. Es tu última defensa.' },
-        { speaker: 'Dave el Loco', mood: 'excited', text: 'Y cuando suene la sirena, prepárate: viene una Gran Oleada. ¡Wuuu! Ahora a plantar.' }
-      ]
-    },
-    { id: 'patio-2', name: 'Patio de noche', subtitle: 'Noche 1', mapPos: { x: 28, y: 62 }, blurb: 'Sin sol del cielo. Cada girasol cuenta.', startSuns: 100, skySuns: false, cards: null, music: 'bgm_night', waves: null,
-      dialogue: [{ speaker: 'Dave el Loco', text: 'Se hizo de noche y el sol se fue a tomar un café. Tendrás que producir tus propios soles.' }] },
-    { id: 'patio-3', name: 'Piscina vecina', subtitle: 'Piscina 1', mapPos: { x: 50, y: 70 }, blurb: 'Dos carriles de agua. Los zombis también saben nadar.', startSuns: 50, skySuns: true, cards: null, music: 'bgm_pool', waves: null,
-      dialogue: [{ speaker: 'Dave el Loco', text: 'La piscina de los García. Nadie la limpia desde 2009. Los zombis la adoran.' }] },
-    { id: 'patio-4', name: 'Calle con niebla', subtitle: 'Niebla 1', mapPos: { x: 70, y: 48 }, blurb: 'No se ve nada a la derecha. Eso es mala señal.', startSuns: 50, skySuns: false, cards: null, music: 'bgm_fog', waves: null,
-      dialogue: [{ speaker: 'Dave el Loco', text: 'Niebla espesa. Si ves algo moverse, probablemente quiere tu cerebro.' }] },
-    { id: 'patio-5', name: 'Tejado', subtitle: 'Tejado 1', mapPos: { x: 90, y: 24 }, blurb: 'La última defensa, en lo alto de la casa.', startSuns: 50, skySuns: true, cards: null, music: 'bgm_roof', waves: null,
-      dialogue: [{ speaker: 'Dave el Loco', mood: 'excited', text: '¡Al tejado! Es el último lugar donde pueden alcanzarnos. Bueno, casi.' }] }
-  ]
+  LEVELS: buildLevels()
 });
 
 /* ==========================================================================
@@ -530,6 +697,7 @@ class AudioManager {
       case 'mower': this._tone(70, 55, 1.2, 'sawtooth', 0.2 * v); this._noise(1.2, 0.12 * v, 900); break;
       case 'siren': for (let i = 0; i < 3; i++) this._tone(440, 880, 0.5, 'sine', 0.25 * v, i * 0.55); break;
       case 'pf': this._tone(300, 1200, 0.4, 'triangle', 0.3 * v); break;
+      case 'shovel': this._noise(0.12, 0.3 * v, 900); this._tone(110, 55, 0.14, 'sine', 0.35 * v, 0.05); break;
       case 'deny': this._tone(180, 120, 0.15, 'square', 0.15 * v); break;
       case 'scream': this._tone(900, 200, 0.9, 'sawtooth', 0.22 * v); this._tone(700, 150, 0.9, 'square', 0.12 * v, 0.05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => this._tone(f, f, 0.22, 'triangle', 0.28 * v, i * 0.14)); break;
@@ -658,11 +826,12 @@ class StoryManager {
     });
     $('#btn-story-skip').addEventListener('click', () => this.finish());
   }
-  play(lines) {
+  play(lines, opts = {}) {
     return new Promise(resolve => {
       if (!lines || !lines.length) { resolve(); return; }
       this.lines = lines;
       this.idx = 0;
+      $('#btn-story-skip').hidden = !opts.canSkip;   // primera vez: hay que leer la historia
       this.resolve = resolve;
       this.active = true;
       this.root.classList.add('is-open');
@@ -799,6 +968,7 @@ class Game {
     d.cardBar = $('#card-bar');
     d.pfBtn = $('#btn-plantfood');
     d.pfValue = $('#pf-value');
+    d.shovelBtn = $('#btn-shovel');
     d.progress = $('#progress');
     d.progressFill = $('#progress-fill');
     d.progressFlags = $('#progress-flags');
@@ -830,7 +1000,9 @@ class Game {
     click('#btn-retry', () => this.startLevel(this.levelIndex));
     click('#btn-gameover-map', () => this.fsm.change('MAP'));
     click('#btn-victory-map', () => this.fsm.change('MAP'));
+    click('#btn-victory-next', () => this.startLevel(this.levelIndex + 1));
     this.dom.pfBtn.addEventListener('click', () => this._toggleFoodTool());
+    this.dom.shovelBtn.addEventListener('click', () => { this.audio.unlock(); this._toggleShovel(); });
   }
 
   /* ------------------------------------------------------------------
@@ -867,7 +1039,7 @@ class Game {
         enter: async data => {
           this._clearTool();
           const lines = (data && data.lines) || [];
-          await this.story.play(lines);
+          await this.story.play(lines, { canSkip: !!(data && data.canSkip) });
           if (this.fsm.is('STORY')) this.fsm.change((data && data.next) || 'PLAYING');
         },
         update: dt => this.story.update(dt),
@@ -887,10 +1059,34 @@ class Game {
           this.audio.stopMusic();
           this.audio.playSfx('win');
           this._clearTool();
-          const next = this.levelIndex + 1;
-          if (next > this.progress.unlocked && next < Config.LEVELS.length) this.progress.unlocked = next;
-          this.progress.done[this.level.id] = true;
+          const lvl = this.level;
+          const idx = this.levelIndex;
+          const isLast = idx >= Config.LEVELS.length - 1;
+          // 1) Recompensa: planta nueva => se añade a unlockedPlants
+          let newPlant = null;
+          if (lvl.reward && !this.progress.unlockedPlants.includes(lvl.reward)) {
+            this.progress.unlockedPlants.push(lvl.reward);
+            newPlant = lvl.reward;
+          }
+          // 2) Avanza el índice (solo si se superó el fragmento más reciente)
+          if (idx === this.progress.currentLevelIndex) {
+            if (isLast) this.progress.finished = true;
+            else this.progress.currentLevelIndex = idx + 1;
+          }
           this._saveProgress();
+          // 3) Modal de victoria
+          const box = $('#victory-reward');
+          box.hidden = !newPlant;
+          if (newPlant) {
+            $('#victory-reward-name').textContent = Config.PLANT_NAMES[newPlant] || newPlant;
+            $('#victory-reward-note').textContent = this.registry.plants.has(newPlant)
+              ? 'Ya está en tu barra de semillas.'
+              : 'Quedará disponible cuando se programe esta planta.';
+          }
+          $('#btn-victory-next').hidden = isLast;
+          $('#victory-text').textContent = isLast
+            ? 'La última oleada cayó. Crazy Dave recupera su buzón y el vecindario respira.'
+            : `Fragmento ${lvl.subtitle} superado. La historia continúa.`;
         }
       });
   }
@@ -903,54 +1099,103 @@ class Game {
   }
 
   /* ------------------------------------------------------------------
-     Progreso y mapa
+     Progreso (localStorage) y mapa por mundos
+     currentLevelIndex = índice del siguiente fragmento por jugar
+     (es decir, último subnivel completado + 1). Empieza en 0 (nivel 1-1).
      ------------------------------------------------------------------ */
+  _defaultProgress() {
+    return { currentLevelIndex: 0, unlockedPlants: [...Config.DEFAULT_UNLOCKED], finished: false };
+  }
   _loadProgress() {
     try {
       const raw = localStorage.getItem(Config.STORAGE_KEY);
-      if (raw) { const p = JSON.parse(raw); return { unlocked: p.unlocked || 0, done: p.done || {} }; }
-    } catch (e) { /* almacenamiento no disponible */ }
-    return { unlocked: 0, done: {} };
+      if (raw) {
+        const p = JSON.parse(raw);
+        const idx = Number.isInteger(p.currentLevelIndex) ? clamp(p.currentLevelIndex, 0, Config.LEVELS.length - 1) : 0;
+        const plants = Array.isArray(p.unlockedPlants) ? p.unlockedPlants.filter(x => typeof x === 'string') : [];
+        for (const d of [...Config.DEFAULT_UNLOCKED].reverse()) if (!plants.includes(d)) plants.unshift(d);
+        return { currentLevelIndex: idx, unlockedPlants: [...new Set(plants)], finished: !!p.finished };
+      }
+    } catch (e) { /* almacenamiento no disponible o datos corruptos */ }
+    return this._defaultProgress();
   }
   _saveProgress() {
     try { localStorage.setItem(Config.STORAGE_KEY, JSON.stringify(this.progress)); } catch (e) { /* ignorar */ }
   }
+  _worldOf(levelIndex) { return Config.LEVELS[clamp(levelIndex, 0, Config.LEVELS.length - 1)].world; }
+
   _buildMap() {
-    this.dom.mapNodes.innerHTML = '';
+    const tabs = $('#world-tabs');
+    tabs.innerHTML = '';
+    Config.WORLDS.forEach(w => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'world-tab';
+      b.dataset.world = String(w.id);
+      b.textContent = w.name;
+      b.addEventListener('click', () => { this.audio.unlock(); this.audio.playSfx('click'); this._showWorld(w.id); });
+      tabs.appendChild(b);
+    });
+    this.mapWorld = this._worldOf(this.progress.currentLevelIndex);
+  }
+  _refreshMap() {
+    this.mapWorld = this._worldOf(this.progress.currentLevelIndex);
+    this.selectedMapLevel = null;
+    this._showWorld(this.mapWorld);
+  }
+  _showWorld(worldId) {
+    this.mapWorld = worldId;
+    const cur = this.progress.currentLevelIndex;
+    document.querySelectorAll('#world-tabs .world-tab').forEach(b => {
+      const id = Number(b.dataset.world);
+      b.disabled = (id - 1) * Config.LEVELS_PER_WORLD > cur;
+      b.classList.toggle('is-active', id === worldId);
+    });
+    // Nodos del mundo, repartidos a lo largo del camino SVG
+    const path = $('.map-road-line');
+    const len = path.getTotalLength();
+    const list = this.dom.mapNodes;
+    list.innerHTML = '';
     Config.LEVELS.forEach((lvl, i) => {
+      if (lvl.world !== worldId) return;
+      const k = lvl.sub - 1;
+      const pt = path.getPointAtLength(len * (0.05 + 0.9 * k / (Config.LEVELS_PER_WORLD - 1)));
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'map-node';
       b.dataset.index = String(i);
-      b.style.left = `${lvl.mapPos.x}%`;
-      b.style.top = `${lvl.mapPos.y}%`;
-      b.textContent = String(i + 1);
-      b.setAttribute('aria-label', `${lvl.name}, ${lvl.subtitle}`);
+      b.style.left = `${pt.x / Config.WIDTH * 100}%`;
+      b.style.top = `${pt.y / Config.HEIGHT * 100}%`;
+      b.textContent = String(lvl.sub);
+      b.disabled = i > cur;
+      b.classList.toggle('is-done', i < cur);
+      b.classList.toggle('is-current', i === cur);
+      b.setAttribute('aria-label', `${lvl.subtitle}: ${lvl.name}`);
       const name = document.createElement('span');
       name.className = 'map-node-name';
       name.textContent = lvl.name;
       b.appendChild(name);
       b.addEventListener('click', () => { this.audio.unlock(); this.audio.playSfx('click'); this._selectMapLevel(i); });
       li.appendChild(b);
-      this.dom.mapNodes.appendChild(li);
+      list.appendChild(li);
     });
-  }
-  _refreshMap() {
-    this.dom.mapNodes.querySelectorAll('.map-node').forEach(b => {
-      const i = Number(b.dataset.index);
-      b.disabled = i > this.progress.unlocked;
-      b.classList.toggle('is-done', !!this.progress.done[Config.LEVELS[i].id]);
-      b.classList.toggle('is-selected', i === this.selectedMapLevel);
-    });
-    if (this.selectedMapLevel === null) this._selectMapLevel(Math.min(this.progress.unlocked, Config.LEVELS.length - 1));
+    const first = (worldId - 1) * Config.LEVELS_PER_WORLD;
+    const pick = (this.selectedMapLevel !== null && this._worldOf(this.selectedMapLevel) === worldId)
+      ? this.selectedMapLevel
+      : clamp(cur, first, first + Config.LEVELS_PER_WORLD - 1);
+    this._selectMapLevel(Math.min(pick, cur));
   }
   _selectMapLevel(i) {
-    if (i > this.progress.unlocked) return;
+    if (i > this.progress.currentLevelIndex) return;
     this.selectedMapLevel = i;
     const lvl = Config.LEVELS[i];
-    $('#map-info-title').textContent = `${lvl.name} (${lvl.subtitle})`;
+    $('#map-info-title').textContent = `${lvl.subtitle}: ${lvl.name}`;
     $('#map-info-text').textContent = lvl.blurb;
+    const rewardEl = $('#map-info-reward');
+    const showReward = lvl.reward && !this.progress.unlockedPlants.includes(lvl.reward);
+    rewardEl.hidden = !showReward;
+    if (showReward) rewardEl.textContent = `Recompensa: ${Config.PLANT_NAMES[lvl.reward] || lvl.reward}`;
     $('#btn-map-start').disabled = false;
     this.dom.mapNodes.querySelectorAll('.map-node').forEach(b => b.classList.toggle('is-selected', Number(b.dataset.index) === i));
   }
@@ -962,7 +1207,7 @@ class Game {
     this.audio.unlock();
     this._resetLevel(index);
     if (this.levelManager && this.levelManager.start) this.levelManager.start(this.level);
-    this.fsm.change('STORY', { lines: this.level.dialogue, next: 'PLAYING' });
+    this.fsm.change('STORY', { lines: this.level.dialogue, next: 'PLAYING', canSkip: index < this.progress.currentLevelIndex });
   }
 
   _resetLevel(index) {
@@ -1106,7 +1351,7 @@ class Game {
     this.dom.cardBar.innerHTML = '';
     this.cardRefs.clear();
     this.cooldowns.clear();
-    const ids = (this.level.cards && this.level.cards.length) ? this.level.cards : [...this.registry.plants.keys()];
+    const ids = this.progress.unlockedPlants.filter(id => this.registry.plants.has(id));   // solo plantas desbloqueadas
     ids.forEach((id, i) => {
       const def = this.registry.plants.get(id);
       if (!def) return;
@@ -1158,7 +1403,25 @@ class Game {
   _syncToolUi() {
     this.cardRefs.forEach((ref, id) => ref.el.classList.toggle('selected', this.tool.type === 'plant' && this.tool.id === id));
     this.dom.pfBtn.setAttribute('aria-pressed', String(this.tool.type === 'plantfood'));
+    this.dom.shovelBtn.setAttribute('aria-pressed', String(this.tool.type === 'shovel'));
     this.dom.stage.classList.toggle('tool-active', this.tool.type !== null);
+    this.dom.stage.classList.toggle('tool-shovel', this.tool.type === 'shovel');
+  }
+  _toggleShovel() {
+    if (!this.fsm.is('PLAYING')) return;
+    if (this.tool.type === 'shovel') { this._clearTool(); return; }
+    this.tool = { type: 'shovel', id: null };
+    this.audio.playSfx('click');
+    this._syncToolUi();
+  }
+  /** Desentierra la planta de la celda: la destruye, libera la grilla y suelta la herramienta. */
+  _tryShovel(row, col) {
+    const plant = this.grid[row][col];
+    if (!plant) return;
+    plant.dead = true;
+    this.grid[row][col] = null;
+    this.audio.playSfx('shovel');
+    this._clearTool();
   }
   _denySuns() {
     this.audio.playSfx('deny');
@@ -1167,8 +1430,13 @@ class Game {
     this.dom.sunCounter.classList.add('deny');
     this.spawnFloatText('Soles insuficientes', this.input.mouse.x, this.input.mouse.y, '#ff8787');
   }
+  isWater(row) {
+    const e = Config.ENVS[this.level && this.level.env];
+    return !!(e && e.waterRows && e.waterRows.includes(row));
+  }
   canPlace(def, row, col) {
     if (this.grid[row][col]) return false;
+    if (Config.ENFORCE_WATER && this.isWater(row) && !def.aquatic) return false;
     return def.canPlace ? !!def.canPlace(this, row, col) : true;
   }
   _tryPlace(row, col) {
@@ -1214,6 +1482,7 @@ class Game {
     if (!cell) return;
     if (this.tool.type === 'plant') this._tryPlace(cell.row, cell.col);
     else if (this.tool.type === 'plantfood') this._tryPlantFood(cell.row, cell.col);
+    else if (this.tool.type === 'shovel') this._tryShovel(cell.row, cell.col);
   }
   _handleKey(code) {
     this.audio.unlock();
@@ -1226,6 +1495,7 @@ class Game {
     if (code === 'Space' || code === 'Enter') { if (this.fsm.is('STORY')) this.story.advance(); return; }
     if (!this.fsm.is('PLAYING')) return;
     if (code === 'KeyF') { this._toggleFoodTool(); return; }
+    if (code === 'KeyS') { this._toggleShovel(); return; }
     const m = /^(?:Digit|Numpad)([1-9])$/.exec(code);
     if (m) { const id = [...this.cardRefs.keys()][Number(m[1]) - 1]; if (id) this._selectCard(id); }
   }
@@ -1327,6 +1597,7 @@ class Game {
     const ctx = this.ctx.ui;
     ctx.clearRect(0, 0, Config.WIDTH, Config.HEIGHT);
     this._renderHologram(ctx);
+    if (this.level && this.level.env === 'fog') this._drawFog(ctx);
     for (const sun of this.entities.suns) if (!sun.dead) sun.render(ctx, this);
     for (const f of this.floatTexts) {
       const k = f.t / f.life;
@@ -1376,6 +1647,13 @@ class Game {
           ctx.fillText(def.name.charAt(0), c.x, c.y);
         }
       }
+    } else if (this.tool.type === 'shovel') {
+      const hasPlant = !!this.grid[cell.row][cell.col];
+      ctx.fillStyle = hasPlant ? 'rgba(220,40,40,.28)' : 'rgba(255,255,255,.08)';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = hasPlant ? '#ff6b6b' : 'rgba(255,255,255,.35)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
     } else if (this.tool.type === 'plantfood') {
       const hasPlant = !!this.grid[cell.row][cell.col];
       ctx.strokeStyle = hasPlant ? '#56d364' : 'rgba(255,255,255,.4)';
@@ -1458,74 +1736,129 @@ class Game {
   }
 
   /* ------------------------------------------------------------------
-     Fondo estático: patio delantero (primitivas; AssetLoader 'bg_lawn' opcional)
+     Fondo dinámico según this.level.env: day, night, pool, fog, roof.
+     Si existe la imagen 'bg_<env>' en el AssetLoader, se usa en su lugar.
      ------------------------------------------------------------------ */
   _drawBackground() {
     const ctx = this.ctx.bg;
     const W = Config.WIDTH, H = Config.HEIGHT, g = Config.GRID;
+    const env = (this.level && this.level.env) || 'day';
+    const E = Config.ENVS[env] || Config.ENVS.day;
+    const gridW = g.cols * g.cellW;
+    this.dom.viewport.dataset.env = env;
     ctx.clearRect(0, 0, W, H);
-    if (this.assets.hasImage('bg_lawn')) { ctx.drawImage(this.assets.getImage('bg_lawn'), 0, 0, W, H); return; }
+    if (this.assets.hasImage(`bg_${env}`)) { ctx.drawImage(this.assets.getImage(`bg_${env}`), 0, 0, W, H); return; }
 
     // Cielo
     const sky = ctx.createLinearGradient(0, 0, 0, g.y);
-    sky.addColorStop(0, '#7cc8ef');
-    sky.addColorStop(1, '#cdeefb');
+    sky.addColorStop(0, E.sky[0]);
+    sky.addColorStop(1, E.sky[1]);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, H);
-
-    // Cerca de madera detrás del césped
-    const fenceTop = 58, fenceBottom = g.y + 4;
-    for (let x = g.x - 20; x < W; x += 26) {
-      ctx.fillStyle = (Math.floor(x / 26) % 2) ? '#a8723a' : '#97652f';
-      ctx.beginPath();
-      ctx.moveTo(x, fenceBottom);
-      ctx.lineTo(x, fenceTop + 10);
-      ctx.lineTo(x + 11, fenceTop);
-      ctx.lineTo(x + 22, fenceTop + 10);
-      ctx.lineTo(x + 22, fenceBottom);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#47280f';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    if (E.stars) {                                   // estrellas deterministas y luna
+      let s = 7;
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 46; i++) {
+        s = (s * 16807) % 2147483647; const x = (s % 1000) / 1000 * W;
+        s = (s * 16807) % 2147483647; const y = (s % 1000) / 1000 * (g.y - 24);
+        ctx.globalAlpha = 0.35 + (s % 5) / 10;
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#f4f1d0';
+      ctx.beginPath(); ctx.arc(960, 46, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = E.sky[0];
+      ctx.beginPath(); ctx.arc(971, 40, 20, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = '#6b4220';
-    ctx.fillRect(g.x - 20, fenceTop + 28, W, 8);
-    ctx.fillRect(g.x - 20, fenceBottom - 24, W, 8);
 
-    // Césped: alternancia por filas y columnas
+    // Cerca de madera (el tejado no tiene)
+    const fenceTop = 58, fenceBottom = g.y + 4;
+    if (E.fence) {
+      for (let x = g.x - 20; x < W; x += 26) {
+        ctx.fillStyle = (Math.floor(x / 26) % 2) ? E.fence[0] : E.fence[1];
+        ctx.beginPath();
+        ctx.moveTo(x, fenceBottom); ctx.lineTo(x, fenceTop + 10); ctx.lineTo(x + 11, fenceTop); ctx.lineTo(x + 22, fenceTop + 10); ctx.lineTo(x + 22, fenceBottom);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+      ctx.fillStyle = E.rail;
+      ctx.fillRect(g.x - 20, fenceTop + 28, W, 8);
+      ctx.fillRect(g.x - 20, fenceBottom - 24, W, 8);
+    } else if (E.roof) {                              // cumbrera del tejado
+      ctx.fillStyle = E.rail;
+      ctx.fillRect(0, g.y - 12, W, 12);
+    }
+
+    // Celdas: patrón de ajedrez de césped, agua (piscina) o tejas
     for (let r = 0; r < g.rows; r++) {
+      const water = !!(E.waterRows && E.waterRows.includes(r));
       for (let c = 0; c < g.cols; c++) {
         const cr = this.cellRect(r, c);
-        ctx.fillStyle = ((r + c) % 2) ? '#5fa83e' : '#6bb548';
+        ctx.fillStyle = water ? E.water[(r + c) % 2] : E.lawn[(r + c) % 2];
         ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
+        if (E.roof) {
+          ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(cr.x + cr.w / 2, cr.y + 2, cr.w / 2 - 4, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke();
+          ctx.beginPath(); ctx.arc(cr.x + cr.w / 2, cr.y + cr.h / 2 + 2, cr.w / 2 - 4, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke();
+        }
       }
     }
-    // Césped lateral (zona de podadoras) y franja derecha
-    ctx.fillStyle = '#4f9535';
+    // Detalles del agua: borde de la piscina y ondas
+    if (E.waterRows) {
+      const y0 = g.y + E.waterRows[0] * g.cellH;
+      const y1 = g.y + (E.waterRows[E.waterRows.length - 1] + 1) * g.cellH;
+      ctx.fillStyle = '#e9e4d2';
+      ctx.fillRect(g.x, y0 - 6, gridW, 6);
+      ctx.fillRect(g.x, y1, gridW, 6);
+      ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 2;
+      for (let y = y0 + 20; y < y1; y += 28) {
+        ctx.beginPath();
+        for (let x = g.x; x <= g.x + gridW; x += 8) {
+          const yy = y + Math.sin((x + y) / 14) * 3;
+          if (x === g.x) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Franjas laterales y líneas de la grilla
+    ctx.fillStyle = E.side;
     ctx.fillRect(0, g.y, g.x, g.rows * g.cellH);
-    ctx.fillStyle = '#4f9535';
     ctx.fillRect(this.gridRight, g.y, W - this.gridRight, g.rows * g.cellH);
-    ctx.strokeStyle = 'rgba(0,0,0,.08)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 1;
     for (let r = 0; r <= g.rows; r++) { ctx.beginPath(); ctx.moveTo(g.x, g.y + r * g.cellH); ctx.lineTo(this.gridRight, g.y + r * g.cellH); ctx.stroke(); }
     for (let c = 0; c <= g.cols; c++) { ctx.beginPath(); ctx.moveTo(g.x + c * g.cellW, g.y); ctx.lineTo(g.x + c * g.cellW, this.gridBottom); ctx.stroke(); }
 
-    // Fachada de la casa (lado izquierdo)
-    ctx.fillStyle = '#b4492f';
+    // Fachada de la casa
+    ctx.fillStyle = E.house;
     ctx.fillRect(0, g.y - 4, 26, g.rows * g.cellH + 8);
     ctx.strokeStyle = 'rgba(0,0,0,.2)';
     for (let y = g.y; y < this.gridBottom; y += 14) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(26, y); ctx.stroke(); }
-    ctx.fillStyle = '#5d2113';
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
     ctx.fillRect(24, g.y - 4, 4, g.rows * g.cellH + 8);
 
-    // Acera y bordillo inferior
-    ctx.fillStyle = '#b9b9b0';
+    // Acera / borde inferior
+    ctx.fillStyle = E.walk;
     ctx.fillRect(0, this.gridBottom, W, H - this.gridBottom);
-    ctx.fillStyle = '#8f8f87';
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
     ctx.fillRect(0, this.gridBottom, W, 6);
-    ctx.strokeStyle = '#9a9a92';
+    ctx.strokeStyle = 'rgba(0,0,0,.12)';
     for (let x = 0; x < W; x += 120) { ctx.beginPath(); ctx.moveTo(x, this.gridBottom + 6); ctx.lineTo(x, H); ctx.stroke(); }
+
+    // Velo ambiental (noche azulada, bruma de la niebla)
+    if (E.overlay) { ctx.fillStyle = E.overlay; ctx.fillRect(0, 0, W, H); }
+  }
+
+  /** Niebla del mundo 4: cubre la mitad derecha y se desplaza lentamente (capa UI). */
+  _drawFog(ctx) {
+    const g = Config.GRID;
+    const x0 = g.x + 3.5 * g.cellW;
+    const drift = Math.sin(this.timer.elapsed * 0.4) * 14;
+    const grad = ctx.createLinearGradient(x0 + drift, 0, x0 + 2.6 * g.cellW + drift, 0);
+    grad.addColorStop(0, 'rgba(214,224,232,0)');
+    grad.addColorStop(1, 'rgba(214,224,232,.62)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x0 + drift, g.y - 8, Config.WIDTH - x0 - drift, g.rows * g.cellH + 16);
   }
 }
 

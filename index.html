@@ -56,6 +56,7 @@
       <header class="map-head">
         <button id="btn-map-back" class="btn btn-small" type="button">Volver</button>
         <h2>Mapa del vecindario</h2>
+        <nav id="world-tabs" class="world-tabs" aria-label="Mundos"></nav>
       </header>
       <div id="map-board" class="map-board">
         <svg class="map-road" viewBox="0 0 1060 640" preserveAspectRatio="none" aria-hidden="true">
@@ -67,6 +68,7 @@
       <aside id="map-info" class="map-info" aria-live="polite">
         <h3 id="map-info-title">Elige un patio</h3>
         <p id="map-info-text">Selecciona un nivel del mapa para ver de qué trata.</p>
+        <p id="map-info-reward" class="map-info-reward" hidden></p>
         <button id="btn-map-start" class="btn btn-primary" type="button" disabled>Defender</button>
       </aside>
     </section>
@@ -92,6 +94,9 @@
             <button id="btn-plantfood" class="tool" type="button" aria-pressed="false" title="Nutriente (tecla F)">
               <span class="pf-icon" aria-hidden="true"></span>
               <output id="pf-value" aria-label="Nutrientes">0</output>
+            </button>
+            <button id="btn-shovel" class="tool tool-shovel" type="button" aria-pressed="false" aria-label="Pala" title="Pala (tecla S)">
+              <span class="shovel-icon" aria-hidden="true"></span>
             </button>
             <button id="btn-pause" class="tool tool-pause" type="button" aria-label="Pausar partida" title="Pausa (Esc)">
               <span aria-hidden="true"></span>
@@ -156,9 +161,16 @@
     <div id="modal-victory" class="modal modal-ok" aria-hidden="true" role="dialog" aria-labelledby="modal-victory-title">
       <div class="modal-card">
         <h2 id="modal-victory-title">Patio defendido</h2>
-        <p>La última oleada cayó. El vecindario respira un poco más tranquilo.</p>
+        <p id="victory-text">La última oleada cayó. El vecindario respira un poco más tranquilo.</p>
+        <div id="victory-reward" class="reward-banner" role="status" hidden>
+          <span class="reward-badge" aria-hidden="true"></span>
+          <p class="reward-title">¡Has desbloqueado una nueva planta!</p>
+          <p id="victory-reward-name" class="reward-name"></p>
+          <p id="victory-reward-note" class="reward-note"></p>
+        </div>
         <div class="modal-actions">
-          <button id="btn-victory-map" class="btn btn-primary" type="button">Continuar al mapa</button>
+          <button id="btn-victory-next" class="btn btn-primary" type="button">Siguiente nivel</button>
+          <button id="btn-victory-map" class="btn" type="button">Volver al mapa</button>
         </div>
       </div>
     </div>
@@ -166,9 +178,9 @@
   </div>
 </main>
 
-<!-- Orden de carga: Engine.js primero. Descomenta los demás cuando los tengas. -->
+<!-- Orden de carga obligatorio: Engine.js, Entities.js, LevelManager.js -->
 <script src="Engine.js"></script>
-<!-- <script src="Entities.js"></script> -->
-<!-- <script src="LevelManager.js"></script> -->
+<script src="Entities.js"></script>
+<script src="LevelManager.js"></script>
 </body>
 </html>
